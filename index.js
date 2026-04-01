@@ -1,79 +1,75 @@
 const { Telegraf, Markup } = require('telegraf');
 
-// ⚠️ ضـع تـوكـن بـوتـك الـرئيسي هـنـا
+// ⚠️ ضع توكن بوتك الرئيسي هنا
 const masterBot = new Telegraf('8594167014:AAGvlDzry3ZWtM4MOgIbSIPhDlYRezvJvq0');
 
 const runningBots = {}; 
 const userChoices = {};
 
-// القائمة الرئيسية للبوت الأم
 masterBot.start((ctx) => {
-    ctx.reply(`أهلاً بك يا مبرمج علي في مصنع البوتات 🏭\n\nاختر نوع البوت الذي تريد إنشاؤه الآن:`, 
+    ctx.reply(`أهلاً بك يا علي في مصنع البوتات المطور 🏭\nيوزر بوتك: @${ctx.botInfo.username}\n\nاختر النوع الذي تريد تشغيله:`, 
     Markup.inlineKeyboard([
-        [Markup.button.callback('📩 بوت تواصل (Messages)', 'type_contact')],
-        [Markup.button.callback('🛡️ بوت حماية (Admin)', 'type_admin')],
-        [Markup.button.callback('🎮 بوت ألعاب (Games)', 'type_games')]
+        [Markup.button.callback('📩 بوت تواصل', 'type_contact')],
+        [Markup.button.callback('🛡️ بوت حماية', 'type_admin')],
+        [Markup.button.callback('🎮 بوت ألعاب', 'type_games')]
     ]));
 });
 
-// التعامل مع اختيار النوع
 masterBot.on('callback_query', (ctx) => {
-    const type = ctx.callbackQuery.data;
-    userChoices[ctx.from.id] = type;
+    userChoices[ctx.from.id] = ctx.callbackQuery.data;
     ctx.answerCbQuery();
-    ctx.reply('✅ اختيار ممتاز! الآن أرسل "التوكن" (Token) من @BotFather لتشغيل البوت.');
+    ctx.reply('✅ تم الاختيار! الآن أرسل "التوكن" من @BotFather.');
 });
 
-// استقبال التوكن وتشغيل البوت المختار
 masterBot.on('text', async (ctx) => {
-    const token = ctx.message.text;
+    const token = ctx.message.text.trim();
     const selectedType = userChoices[ctx.from.id];
 
     if (token.includes(':') && selectedType) {
-        if (runningBots[token]) return ctx.reply('⚠️ هذا البوت يعمل بالفعل على السيرفر!');
+        if (runningBots[token]) return ctx.reply('⚠️ هذا البوت يعمل بالفعل!');
 
-        const loading = await ctx.reply('⏳ جاري فحص التوكن وتنصيب البرمجية...');
+        const loading = await ctx.reply('⏳ جاري فحص التوكن... (إذا استغرق الأمر أكثر من 10 ثوانٍ فالجهاز معلق)');
 
         try {
             const newUserBot = new Telegraf(token);
 
-            // --- 1. مود بوت التواصل ---
+            // فحص التوكن قبل التشغيل (مهم جداً لعدم تعليق السيرفر)
+            const botInfo = await newUserBot.telegram.getMe().catch(() => null);
+            
+            if (!botInfo) {
+                return ctx.telegram.editMessageText(ctx.chat.id, loading.message_id, null, '❌ التوكن غير صحيح! تأكد منه من BotFather.');
+            }
+
+            // --- 1. مود التواصل ---
             if (selectedType === 'type_contact') {
-                newUserBot.start((uCtx) => uCtx.reply('مرحباً! أرسل رسالتك هنا وسأوصلها للمطور.'));
+                newUserBot.start((uCtx) => uCtx.reply('مرحباً! أرسل رسالتك وسأوصلها للمطور.'));
                 newUserBot.on('message', (uCtx) => {
                     if (uCtx.from.id !== ctx.from.id) {
-                        masterBot.telegram.sendMessage(ctx.from.id, `📥 رسالة جديدة من: ${uCtx.from.first_name}\n\n${uCtx.message.text || 'أرسل ملف/صورة'}`);
-                        uCtx.reply('✅ تم إرسال رسالتك بنجاح.');
+                        masterBot.telegram.sendMessage(ctx.from.id, `📥 من: ${uCtx.from.first_name}\n\n${uCtx.message.text || 'مستند/صورة'}`);
+                        uCtx.reply('✅ تم الإرسال.');
                     }
                 });
             } 
-            
-            // --- 2. مود بوت الحماية ---
+            // --- 2. مود الحماية ---
             else if (selectedType === 'type_admin') {
-                newUserBot.start((uCtx) => uCtx.reply('بوت الحماية يعمل! قم برفعه مشرفاً في الجروب.'));
-                newUserBot.on('new_chat_members', (uCtx) => uCtx.reply('ممنوع دخول البوتات! سيتم طرد أي بوت غريب.'));
-                newUserBot.hears('طرد', (uCtx) => {
-                    if(uCtx.message.reply_to_message) uCtx.kickChatMember(uCtx.message.reply_to_message.from.id);
-                });
+                newUserBot.start((uCtx) => uCtx.reply('بوت الحماية جاهز! ارفعني مشرفاً.'));
+                newUserBot.on('new_chat_members', (uCtx) => uCtx.reply('ممنوع البوتات!'));
             }
-
-            // --- 3. مود بوت الألعاب (المتحجر) ---
+            // --- 3. مود الألعاب ---
             else if (selectedType === 'type_games') {
-                newUserBot.start((uCtx) => uCtx.reply('بوت الألعاب جاهز! أرسل (تسلية) لرؤية القائمة.'));
-                newUserBot.hears('تسلية', (uCtx) => uCtx.reply('اختر لعبة:', Markup.keyboard([['كت تويت', 'لو خيروك'], ['نسبة الحب', 'رمزيات']]).resize()));
-                newUserBot.hears('كت تويت', (uCtx) => uCtx.reply('ما هو هدفك في الحياة؟ 🎤'));
-                newUserBot.hears('لو خيروك', (uCtx) => uCtx.reply('لو خيروك بين: \n 🍱 أكل صيني \n 🍕 بيتزا إيطالية'));
+                newUserBot.hears('تسلية', (uCtx) => uCtx.reply('أهلاً بك في عالم الألعاب!'));
+                newUserBot.hears('كت تويت', (uCtx) => uCtx.reply('ما هو حلمك؟ 🎤'));
             }
 
-            await newUserBot.launch();
+            // تشغيل البوت بدون انتظار (Non-blocking)
+            newUserBot.launch().catch(err => console.log("Error launching sub-bot:", err));
             runningBots[token] = newUserBot;
             
-            const botInfo = await newUserBot.telegram.getMe();
-            ctx.telegram.editMessageText(ctx.chat.id, loading.message_id, null, `🚀 مبروك يا علي!\nتم تشغيل بوتك بنجاح.\n\nنوع البوت: ${selectedType}\nيوزر البوت: @${botInfo.username}`);
+            ctx.telegram.editMessageText(ctx.chat.id, loading.message_id, null, `🚀 نجحنا يا علي!\nتم تشغيل @${botInfo.username}\nالنوع: ${selectedType}`);
             delete userChoices[ctx.from.id];
 
         } catch (e) {
-            ctx.reply('❌ فشل! التوكن غير صحيح أو أن تليجرام يرفض الاتصال حالياً.');
+            ctx.reply('❌ حدث خطأ تقني في تشغيل البوت.');
         }
     }
 });
