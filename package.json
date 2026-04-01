@@ -1,0 +1,9 @@
+{
+  "name": "ali-bot-factory",
+  "version": "1.0.0",
+  "description": "The Ultimate Bot Maker by Ali",
+  "main": "index.js",
+  "dependencies": {
+    "telegraf": "^4.12.2"
+  }
+}
